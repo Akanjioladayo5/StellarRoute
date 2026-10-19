@@ -482,6 +482,136 @@ impl SwapSubmitResponse {
     }
 }
 
+// ── Card program preview (CARD-37, additive, flag-gated) ──────────────────────
+// Backend is fail-closed behind `CARD_ENABLED` (404 when disabled) and never
+// holds keys or card PANs. No PAN, card number, CVV/CVC, or expiry field may
+// be added here.
+
+/// Card program health (`GET /api/v1/card/health`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CardHealth {
+    /// Whether the card program is enabled on this deployment.
+    pub enabled: bool,
+}
+
+impl CardHealth {
+    /// Disabled shape returned when the backend answers 404.
+    pub fn disabled() -> Self {
+        Self { enabled: false }
+    }
+
+    /// Returns `true` when the card program is enabled.
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+}
+
+/// Draft card application (`POST /api/v1/card/applications/validate`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CardApplicationDraft {
+    /// Caller-chosen applicant reference (opaque string).
+    pub applicant_ref: String,
+    /// Optional display name (not a PAN, not a key).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+}
+
+/// Validation outcome for a draft card application.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CardApplicationValidation {
+    /// Whether the draft passed validation.
+    pub valid: bool,
+    /// Echo of the submitted applicant reference.
+    pub applicant_ref: String,
+}
+
+/// A single card authorization (webhook-derived view model).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CardAuthorization {
+    /// Stable authorization identifier; dismiss state keys off this.
+    pub id: String,
+    /// Authorization status: `approved`, `declined`, or `pending`.
+    pub status: String,
+    /// Machine-readable decline code when `status == "declined"`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decline_code: Option<String>,
+    /// Decimal amount string (e.g. `"12.50"`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub amount: Option<String>,
+    /// ISO-4217 currency code (e.g. `"USD"`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub currency: Option<String>,
+    /// RFC-3339 timestamp when the authorization was created.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+}
+
+/// List response for card authorizations.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CardAuthorizationsResponse {
+    #[serde(default)]
+    pub authorizations: Vec<CardAuthorization>,
+    #[serde(default)]
+    pub total: usize,
+}
+
+// ── Agent preview (AI-36, additive, flag-gated) ────────────────────────────────
+// Backend is fail-closed behind `AI_AGENT_ENABLED` (404 when disabled).
+
+/// Agent feature health (`GET /api/v1/agent/health`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentHealth {
+    /// Whether the agent feature is enabled on this deployment.
+    pub enabled: bool,
+}
+
+impl AgentHealth {
+    /// Disabled shape returned when the backend answers 404.
+    pub fn disabled() -> Self {
+        Self { enabled: false }
+    }
+
+    /// Returns `true` when the agent feature is enabled.
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+}
+
+/// Request to validate an AI agent intent (`POST /api/v1/agent/intents/validate`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValidateIntentRequest {
+    /// Intent type (send, swap, bridge, etc.)
+    pub r#type: String,
+    /// Amount as a string
+    pub amount: String,
+    /// Asset code
+    pub asset: String,
+    /// Optional recipient address
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recipient: Option<String>,
+    /// Optional destination chain/asset
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub destination: Option<String>,
+    /// Optional source chain/asset
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    /// Optional currency
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<String>,
+    /// Optional recurrence
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recurrence: Option<String>,
+}
+
+/// Validated intent response from `POST /api/v1/agent/intents/validate`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValidateIntentResponse {
+    /// Normalized amount string.
+    pub amount: String,
+    /// Intent type.
+    pub r#type: String,
+}
+
 // ── Internal error response ───────────────────────────────────────────────────
 
 /// Wire format of the API error body — used internally by the client.
